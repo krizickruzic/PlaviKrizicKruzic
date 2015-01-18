@@ -117,5 +117,13 @@
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:gravity="center">
-        android:layout_gravity="center_horizontal"></LinearLayout>
+        android:layout_gravity="center_horizontal">
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="200px"
+            android:text="Go back to main menu button!"
+            android:onClick="goBack"
+            android:id="@+id/btnPlayBack" />
+    </LinearLayout>
 </LinearLayout>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <ListView
+        android:layout_width="match_parent"
+        android:layout_height="600px"
+        android:id="@+id/lsvHistory"
+        android:gravity="center_vertical"
+        ></ListView>
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="200px"
+        android:text="Delete all history button!"
+        android:onClick="deleteFile"
+        android:id="@+id/btnHistoryDelete"
+        android:layout_gravity="center_horizontal" />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="200px"
+        android:text="Go back to main menu button!"
+        android:onClick="goBack"
+        android:id="@+id/btnHistoryBack"
+        android:layout_gravity="center_horizontal" />
+
+</LinearLayout>
