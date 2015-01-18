@@ -22,6 +22,7 @@ public class KrizicKruzic extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_play);
 
+
         board = new char[3][3];
         currentPlayerMark = 'x';
         for (int i = 0; i < 3; i++) {
