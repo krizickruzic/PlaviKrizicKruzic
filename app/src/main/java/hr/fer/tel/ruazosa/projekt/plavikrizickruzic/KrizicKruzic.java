@@ -1,7 +1,14 @@
 package hr.fer.tel.ruazosa.projekt.plavikrizickruzic;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.TaskStackBuilder;
 import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -24,7 +31,7 @@ import java.util.ArrayList;
 public class KrizicKruzic extends Activity {
 
     //Krizic_Kruzic
-    Button play, history, exit;
+    Button play, history, exit,notifikacija;
 
     //Play
     private static final char KRIZIC = 'x';
@@ -57,11 +64,19 @@ public class KrizicKruzic extends Activity {
         play = (Button) findViewById(R.id.btnPlay);
         history = (Button) findViewById(R.id.btnHistory);
         exit = (Button) findViewById(R.id.btnExit);
+        notifikacija = (Button) findViewById(R.id.button);
 
         play.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 setContentView(R.layout.activity_play);
+            }
+        });
+
+        notifikacija.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ajmoSlati();
             }
         });
 
@@ -332,5 +347,36 @@ public class KrizicKruzic extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         return id == R.id.action_settings || super.onOptionsItemSelected(item);
+    }
+
+
+    //Notofikacija
+    /*Dio u komentarima bi trebao aktivirati novi activity Result.class
+    * gdje bi se odvijala igra, no kako se Igra odvija u novom layoutu u istom activityu
+    * ne znam kako točno se tako prebaciti, probat ću kasnije ako stignem, no slobno netko
+     * od vas neka to napravi*/
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
+    private void ajmoSlati(){
+        int ID= 001;
+
+        //Intent otvori = new Intent(this, Result.class);
+        //TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        //stackBuilder.addParentStack(Result.class);
+        //stackBuilder.addNextIntent(otvori);
+        //PendingIntent otvorisad = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+
+
+        Notification.Builder notifikacija = new Notification.Builder(this);
+        notifikacija.setAutoCancel(true);
+        notifikacija.setSmallIcon(R.drawable.krizic);
+        notifikacija.setContentTitle("Veza Nađena");
+        notifikacija.setContentText("Imate novog suparnika");
+
+        //notifikacija.setContentIntent(otvorisad);
+
+
+        Notification jesmo = notifikacija.build();
+        NotificationManager mangaer = (NotificationManager) this.getSystemService(NOTIFICATION_SERVICE);
+        mangaer.notify(ID,jesmo );
     }
 }
