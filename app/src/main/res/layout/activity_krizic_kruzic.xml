@@ -44,11 +44,17 @@
         android:layout_height="wrap_content"
         android:text="Notifkacija"
         android:id="@+id/button"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="48dp"
         android:clickable="true"
-         />
+        android:layout_below="@+id/btnExit"
+        android:layout_centerHorizontal="true" />
+
+    <ListView
+        android:layout_width="match_parent"
+        android:layout_height="fill_parent"
+        android:id="@+id/listView"
+        android:layout_below="@+id/button"
+        android:clickable="true"
+        android:choiceMode="singleChoice" />
 
 </RelativeLayout>
 

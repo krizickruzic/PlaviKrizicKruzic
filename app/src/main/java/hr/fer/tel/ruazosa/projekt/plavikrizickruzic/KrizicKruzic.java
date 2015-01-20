@@ -6,29 +6,43 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
+import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.UUID;
 
 
-public class KrizicKruzic extends Activity {
+public class KrizicKruzic extends Activity implements AdapterView.OnItemClickListener{
 
     //Krizic_Kruzic
     Button play, history, exit,notifikacija;
@@ -44,6 +58,59 @@ public class KrizicKruzic extends Activity {
     ArrayAdapter<String> adapter;
     File file;
 
+    //BLUETOTH
+    private static final int SUCCESS_CONNECT = 0;
+    private static final int MESSAGE_READ = 1;
+    private static final int PRIMIO = 2;
+    ArrayAdapter<String> listAdapter;
+    ListView listview;
+    Button connectnew;
+    TextView textView;
+    int i;
+
+    BluetoothAdapter bAdapter;
+
+    Set<BluetoothDevice> devicesArray;
+
+    ArrayList<String> pariedDevices;
+    ArrayList<BluetoothDevice> devices;
+
+    IntentFilter filter;
+
+    BroadcastReceiver receiver;
+    android.os.Handler mHandler = new android.os.Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+
+            switch (msg.what){
+                case SUCCESS_CONNECT:
+                    final ConnectedThread connectedThread = new ConnectedThread((BluetoothSocket) msg.obj);
+                    Toast.makeText(getApplicationContext(), "CONNECTED, najvjerojatnije notifikacija", Toast.LENGTH_SHORT).show();
+                    Log.e("", "USAO SAM JEJEJE");
+                    String s = "Successfully connected \n";
+                    connectedThread.write(s.getBytes());
+
+
+
+                    break;
+
+                case MESSAGE_READ:
+                    byte[] readBuf = (byte[]) msg.obj;
+                    String string = new String(readBuf);
+                    listAdapter.add("Povezano");
+                    Toast.makeText(getApplicationContext(), string, Toast.LENGTH_SHORT).show();
+                    break;
+                case PRIMIO:
+                    Toast.makeText(getApplicationContext(),"MoLIM TE BUDI GOTOV", Toast.LENGTH_SHORT).show();
+            }
+        }
+    };
+
+
+    public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
+    //BLUETOTHEND
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +118,19 @@ public class KrizicKruzic extends Activity {
         setContentView(R.layout.activity_krizic_kruzic);
         init();
         makeBoard();
+
+        initBT();
+
+
+        if (bAdapter == null){
+            Toast.makeText(getApplicationContext(), "IDIOT", Toast.LENGTH_LONG).show();
+            finish();
+        }
+        startDiscovery();
+        getPariedDevices();
+        //printDevices();
+        AcceptThread serverDevice = new AcceptThread();
+        serverDevice.start();
     }
 
     private void init() {
@@ -379,4 +459,294 @@ public class KrizicKruzic extends Activity {
         NotificationManager mangaer = (NotificationManager) this.getSystemService(NOTIFICATION_SERVICE);
         mangaer.notify(ID,jesmo );
     }
+
+
+    //OVO SVE BI KAO TREBALO ZA BLUETOTH
+
+    private void startDiscovery() {
+        bAdapter.cancelDiscovery();
+        bAdapter.startDiscovery();
+
+    }
+
+    private void TrunonBT() {
+        Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+        startActivityForResult(intent, 1);
+    }
+
+    private void getPariedDevices() {
+        devicesArray = bAdapter.getBondedDevices();
+        if(devicesArray.size()>0){
+            for(BluetoothDevice device:devicesArray){
+                devices.add(device);
+                pariedDevices.add(device.getName());
+                listAdapter.add(device.getName()+"( "+"Paired"+" )"+ "\n" + device.getAddress());
+            }
+        }
+    }
+
+
+    private void initBT(){
+        connectnew = (Button)findViewById(R.id.button);
+        listview = (ListView)findViewById(R.id.listView);
+        listview.setOnItemClickListener(this);
+        listAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,0);
+        listview.setAdapter(listAdapter);
+        bAdapter = BluetoothAdapter.getDefaultAdapter();
+        pariedDevices = new ArrayList<String>();
+        filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        devices = new ArrayList<BluetoothDevice>();
+        TrunonBT();
+
+        Intent discoverableIntent = new
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+        startActivity(discoverableIntent);
+        receiver= new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (BluetoothDevice.ACTION_FOUND.equals(action)){
+                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    devices.add(device);
+                    String s= "";
+
+                    for (int a=0; a<pariedDevices.size(); a++ ){
+                        if(device.getName().equals(pariedDevices.get(a))){
+                            //aa
+
+                            s ="Paired";
+                            break;
+                        }
+                    }
+
+                    listAdapter.add(device.getName()+"( "+s+" )"+ "\n" + device.getAddress());
+                }
+
+                else if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(action)){
+                    listAdapter.add(pariedDevices.get(0));
+
+                }
+
+                else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)){
+                    //HAS CODE IN IT
+
+
+                }
+
+                else if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)){
+                    if (bAdapter.getState() == bAdapter.STATE_OFF){
+                        TrunonBT();
+
+                    }
+                }
+
+            }
+        };
+
+        registerReceiver(receiver, filter);
+        filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+        registerReceiver(receiver, filter);
+        filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        registerReceiver(receiver, filter);
+        filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        registerReceiver(receiver, filter);
+
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try{
+            unregisterReceiver(receiver);
+        }catch (IllegalArgumentException e){
+
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if(resultCode==RESULT_CANCELED){
+            Toast.makeText(getApplicationContext(),"AGAIN IDIOT", Toast.LENGTH_SHORT);
+            finish();
+        }
+    }
+
+
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+        if (bAdapter.isDiscovering()){
+            bAdapter.cancelDiscovery();
+        }
+
+        if(listAdapter.getItem(position).contains("Paired")){
+
+            BluetoothDevice slectedDevice = devices.get(position);
+            ConnectThread connect = new ConnectThread(slectedDevice);
+            connect.start();
+
+
+        }
+        else{
+            Toast.makeText(getApplicationContext(),"device is NOT paried", Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+
+    private class AcceptThread extends Thread {
+        private final BluetoothServerSocket mmServerSocket;
+
+        public AcceptThread() {
+            // Use a temporary object that is later assigned to mmServerSocket,
+            // because mmServerSocket is final
+            BluetoothServerSocket tmp = null;
+            try {
+                // MY_UUID is the app's UUID string, also used by the client code
+                tmp = bAdapter.listenUsingRfcommWithServiceRecord("Vezaje", MY_UUID);
+            } catch (IOException e) { }
+            mmServerSocket = tmp;
+        }
+
+        public void run() {
+            BluetoothSocket socket = null;
+            // Keep listening until exception occurs or a socket is returned
+            while (true) {
+                try {
+                    socket = mmServerSocket.accept();
+                } catch (IOException e) {
+                    break;
+                }
+                // If a connection was accepted
+                if (socket != null) {
+                    // Do work to manage the connection (in a separate thread)
+                    mHandler.obtainMessage(PRIMIO, socket).sendToTarget();
+                    try {
+                        mmServerSocket.close();
+                    }catch (IOException e){
+
+                    }
+                    break;
+                }
+            }
+        }
+
+        /** Will cancel the listening socket, and cause the thread to finish */
+        public void cancel() {
+            try {
+                mmServerSocket.close();
+            } catch (IOException e) { }
+        }
+    }
+
+    private class ConnectThread extends Thread {
+        private BluetoothSocket mmSocket;
+        private final BluetoothDevice mmDevice;
+
+        public ConnectThread(BluetoothDevice device) {
+            // Use a temporary object that is later assigned to mmSocket,
+            // because mmSocket is final
+            BluetoothSocket tmp = null;
+            mmDevice = device;
+
+            // Get a BluetoothSocket to connect with the given BluetoothDevice
+            try {
+                // MY_UUID is the app's UUID string, also used by the server code
+                tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
+            } catch (IOException e) { }
+            mmSocket = tmp;
+        }
+
+        public void run() {
+            // Cancel discovery because it will slow down the connection
+            bAdapter.cancelDiscovery();
+
+            try {
+                // Connect the device through the socket. This will block
+                // until it succeeds or throws an exception
+                mmSocket.connect();
+            } catch (IOException connectException) {
+                // Unable to connect; close the socket and get out
+                try {
+                    mmSocket.close();
+                } catch (IOException closeException) { }
+                return;
+            }
+
+            mHandler.obtainMessage(SUCCESS_CONNECT, mmSocket).sendToTarget();
+        }
+
+
+        /** Will cancel an in-progress connection, and close the socket */
+        public void cancel() {
+            try {
+                mmSocket.close();
+            } catch (IOException e) { }
+        }
+    }
+
+
+    private class ConnectedThread extends Thread {
+        private final BluetoothSocket mmSocket;
+        private final InputStream mmInStream;
+        private final OutputStream mmOutStream;
+
+        public ConnectedThread(BluetoothSocket socket) {
+            mmSocket = socket;
+            InputStream tmpIn = null;
+            OutputStream tmpOut = null;
+
+
+            // Get the input and output streams, using temp objects because
+            // member streams are final
+            try {
+                tmpIn = socket.getInputStream();
+                tmpOut = socket.getOutputStream();
+            } catch (IOException e) { }
+
+            mmInStream = tmpIn;
+            mmOutStream = tmpOut;
+        }
+
+        public void run() {
+            byte[] buffer;  // buffer store for the stream
+            int bytes; // bytes returned from read()
+
+            // Keep listening to the InputStream until an exception occurs
+            while (true) {
+                try {
+                    Toast.makeText(getApplicationContext(),"device is NOT paried", Toast.LENGTH_SHORT).show();
+                    buffer = new byte[1024];
+                    // Read from the InputStream
+                    bytes = mmInStream.read(buffer);
+                    // Send the obtained bytes to the UI activity
+                    mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+
+                } catch (IOException e) {
+                    break;
+                }
+            }
+        }
+
+        /* Call this from the main activity to send data to the remote device */
+        public void write(byte[] bytes) {
+            try {
+                mmOutStream.write(bytes);
+            } catch (IOException e) { }
+        }
+
+        /* Call this from the main activity to shutdown the connection */
+        public void cancel() {
+            try {
+                mmSocket.close();
+            } catch (IOException e) { }
+        }
+    }
+
+
+    //OVDJE JE KRAJ
+
+
 }
