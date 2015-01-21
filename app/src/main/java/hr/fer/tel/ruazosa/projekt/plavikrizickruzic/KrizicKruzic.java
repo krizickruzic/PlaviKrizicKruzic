@@ -30,6 +30,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -86,6 +87,7 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
             switch (msg.what){
                 case SUCCESS_CONNECT:
                     final ConnectedThread connectedThread = new ConnectedThread((BluetoothSocket) msg.obj);
+                    connectedThread.start();
                     Toast.makeText(getApplicationContext(), "CONNECTED, najvjerojatnije notifikacija", Toast.LENGTH_SHORT).show();
                     Log.e("", "USAO SAM JEJEJE");
                     String s = "Successfully connected \n";
@@ -103,6 +105,7 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
                     break;
                 case PRIMIO:
                     Toast.makeText(getApplicationContext(),"MoLIM TE BUDI GOTOV", Toast.LENGTH_SHORT).show();
+                    new ConnectedThread((BluetoothSocket) msg.obj).start();
             }
         }
     };
@@ -717,14 +720,29 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
             // Keep listening to the InputStream until an exception occurs
             while (true) {
                 try {
-                    Toast.makeText(getApplicationContext(),"device is NOT paried", Toast.LENGTH_SHORT).show();
-                    buffer = new byte[1024];
+                    buffer = new byte[1];
                     // Read from the InputStream
-                    bytes = mmInStream.read(buffer);
+                    bytes = mmInStream.read(buffer, 0, 1);
+
+                    final int input = buffer[0];
+
+                    Log.d("PINGPONG", "Received message" + input);
+
+                    Thread.sleep(1000);
+
+                    final byte outputBuffer[] = new byte[1];
+                    final int out = input + 1;
+                    outputBuffer[0] = (byte) out;
+
+                    write(outputBuffer);
+
                     // Send the obtained bytes to the UI activity
-                    mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+                    //mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
 
                 } catch (IOException e) {
+                    break;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                     break;
                 }
             }
@@ -733,6 +751,7 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
         /* Call this from the main activity to send data to the remote device */
         public void write(byte[] bytes) {
             try {
+                Log.d("PINGPONG", "Writing " + bytes);
                 mmOutStream.write(bytes);
             } catch (IOException e) { }
         }
