@@ -52,7 +52,12 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
     private static final char KRIZIC = 'x';
     private static final char KRUZIC = 'o';
     private char[][] board;
+    int a;
     private char currentPlayerMark;
+    private int [][] pozicija = new int[3][3];
+    int row = 0, col = 0;
+    boolean wehaveawinner;
+
 
     //Saving data
     ArrayList<String> myStringArray1,myStringArray2,myStringArray3;
@@ -67,7 +72,10 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
     ListView listview;
     Button connectnew;
     TextView textView;
-    int i;
+    int i,x;
+    Integer IDEN=1,komunikacijskikanal;
+    ConnectedThread client=null;
+    ConnectedThread server=null;
 
     BluetoothAdapter bAdapter;
 
@@ -86,154 +94,96 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
 
             switch (msg.what){
                 case SUCCESS_CONNECT:
-                    final ConnectedThread connectedThread = new ConnectedThread((BluetoothSocket) msg.obj);
-                    connectedThread.start();
-                    Toast.makeText(getApplicationContext(), "CONNECTED, najvjerojatnije notifikacija", Toast.LENGTH_SHORT).show();
-                    Log.e("", "USAO SAM JEJEJE");
-                    String s = "Successfully connected \n";
-                    connectedThread.write(s.getBytes());
-
-
-
+                    client=jasamClient((BluetoothSocket) msg.obj);
+                    server=null;
+                    IDEN=0;
+                    client.start();
+                    //ajmoSlati();
                     break;
 
                 case MESSAGE_READ:
-                    byte[] readBuf = (byte[]) msg.obj;
+                    byte[] readBuf =(byte[]) msg.obj;
                     String string = new String(readBuf);
-                    listAdapter.add("Povezano");
-                    Toast.makeText(getApplicationContext(), string, Toast.LENGTH_SHORT).show();
+                    IDEN=1;
+                    //Toast.makeText(getApplicationContext(), string, Toast.LENGTH_SHORT).show();
+                    primioPoruku(string);
                     break;
                 case PRIMIO:
-                    Toast.makeText(getApplicationContext(),"MoLIM TE BUDI GOTOV", Toast.LENGTH_SHORT).show();
-                    new ConnectedThread((BluetoothSocket) msg.obj).start();
+                    server=jasamServer((BluetoothSocket) msg.obj);
+                    server.start();
+                    //ajmoSlati();
+                    break;
+
             }
         }
     };
 
 
-    public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private void primioPoruku(String p) {
+        //byte[] readBuf = buffer;
+        //String string = new String(readBuf);
+        //Toast.makeText(getApplicationContext(), string, Toast.LENGTH_SHORT).show();
 
-    //BLUETOTHEND
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_krizic_kruzic);
-        init();
-        makeBoard();
-
-        initBT();
-
-
-        if (bAdapter == null){
-            Toast.makeText(getApplicationContext(), "IDIOT", Toast.LENGTH_LONG).show();
-            finish();
-        }
-        startDiscovery();
-        getPariedDevices();
-        //printDevices();
-        AcceptThread serverDevice = new AcceptThread();
-        serverDevice.start();
-    }
-
-    private void init() {
-        //SAVING DATA ELEMENTS
-        file = new File(getFilesDir().toString()+"/history");
-        myStringArray1 = new ArrayList<String>();
-        myStringArray2 = new ArrayList<String>();
-        myStringArray3 = new ArrayList<String>();
-        adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, myStringArray2);
-
-        play = (Button) findViewById(R.id.btnPlay);
-        history = (Button) findViewById(R.id.btnHistory);
-        exit = (Button) findViewById(R.id.btnExit);
-        notifikacija = (Button) findViewById(R.id.button);
-
-        play.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                setContentView(R.layout.activity_play);
-            }
-        });
-
-        notifikacija.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                ajmoSlati();
-            }
-        });
-
-        history.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                setContentView(R.layout.activity_history);
-                ListView lsvHistory= (ListView) findViewById(R.id.lsvHistory);
-                lsvHistory.setAdapter(adapter);
-                getAllGames(file);
-            }
-        });
-
-        exit.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                System.exit(0);
-            }
-        });
-    }
-
-    private void makeBoard() {
-        board = new char[3][3];
-        currentPlayerMark = 'x';
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                board[i][j] = '-';
-            }
-        }
-    }
-
-    public void kliknuto (View v) {
-        int row = 0, col = 0;
-        boolean wehaveawinner;
         boolean isFull = true;
-
-        ImageView iv = (ImageView) v;
-        LinearLayout parent = (LinearLayout) v.getParent();
-        LinearLayout parentParent = (LinearLayout) parent.getParent();
-
-        if(parent.getChildAt(0) == v) row = 0;
-        if(parent.getChildAt(1) == v) row = 1;
-        if(parent.getChildAt(2) == v) row = 2;
-
-        if(parentParent.getChildAt(0) == parent) col = 0;
-        if(parentParent.getChildAt(1) == parent) col = 1;
-        if(parentParent.getChildAt(2) == parent) col = 2;
-
-        /*IVAN KOMENTAR!!!*/
-        // Za Domagoja i Mateja: OVDJE IMAS INFORMACIJU KOJI
-        //JE STUPAC I KOJI RED ODABRAN: row i col, te osim toga
-        //u "wehaveawinner" će se nalaziti ako je došlo do tog da
-        //je netko pobijedio ili isFull ako je nerješeno.
-        //Za Domagoja: potrebno je svaki taj potez na neki način trajno spremiti,
-        //te oznaku je li korisnik pobijedio, izgubio itd i s kim.
-        //Za Mateja: potrebno je svaki taj potez poslati drugom korisniku preko wifi-a ili
-        //bluetootha i korisnik taj podatak mora primiti.
-
-        /*DOMAGOJ KOMENTAR!!!*/
-        // Za Ivana i Mateja: malo sam uredio kod i stavio u metode da ne izgleda natrpano sad kad sam nadodao i svoje. Ima dosta privremenih detalja kao button goBack na svakom layoutu da bi se app lakse testirala!
-        //Za Mateja: trebala bi mi nekakva identifikacijska oznaka igraca da se i o tome vodi racuna <<"Ako se slučajno sretne suparnik s kojim prošla igra nije dovršena, treba
-        //omogućiti nastavak igre">>.
-
+        ImageView iv;
+        iv = (ImageView) findViewById(R.id.imageView);
+        if (wehaveawinner != true){
+        if (p.contains("1")){
+            col=0;
+            row=0;
+            iv= (ImageView) findViewById(R.id.imageView);
+        }
+        if (p.contains("2")){
+            col=0;
+            row=1;
+            iv= (ImageView) findViewById(R.id.imageView2);
+        }
+        if (p.contains("3")){
+            col=0;
+            row=2;
+            iv= (ImageView) findViewById(R.id.imageView3);
+        }
+        if (p.contains("4")){
+            col=1;
+            row=0;
+            iv= (ImageView) findViewById(R.id.imageView4);
+        }
+        if (p.contains("5")){
+            col=1;
+            row=1;
+            iv= (ImageView) findViewById(R.id.imageView5);
+        }
+        if (p.contains("6")){
+            col=1;
+            row=2;
+            iv= (ImageView) findViewById(R.id.imageView6);
+        }
+        if (p.contains("7")){
+            col=2;
+            row=0;
+            iv= (ImageView) findViewById(R.id.imageView7);
+        }
+        if (p.contains("8")){
+            col=2;
+            row=1;
+            iv= (ImageView) findViewById(R.id.imageView8);
+        }if (p.contains("9")){
+            col=2;
+            row=2;
+            iv= (ImageView) findViewById(R.id.imageView9);
+        }
         if(iv.getDrawable() == null) {
             if (board[row][col] == '-') {
                 board[row][col] = currentPlayerMark;
             }
             if (currentPlayerMark == KRIZIC) {
-            iv.setImageResource(R.drawable.krizic);
-            currentPlayerMark = KRUZIC;
+                iv.setImageResource(R.drawable.krizic);
+                currentPlayerMark = KRUZIC;
             } else {
                 iv.setImageResource(R.drawable.kruzic);
                 currentPlayerMark = KRIZIC;
             }
+        }
         }
         wehaveawinner = false;
         for (int i = 0; i < 3; i++) {
@@ -266,6 +216,219 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
         addParametersToList(wehaveawinner, isFull, currentPlayerMark, row, col);
     }
 
+
+
+    private ConnectedThread jasamClient(BluetoothSocket obj) {
+        ConnectedThread clientThread = new ConnectedThread(obj);
+        IDEN = 1;
+        //komunikacijskaveza(clientThread);
+        setContentView(R.layout.activity_play);
+
+        return clientThread;
+    }
+
+    private ConnectedThread jasamServer(BluetoothSocket obj) {
+        setContentView(R.layout.activity_play);
+        ConnectedThread serverThread =  new ConnectedThread(obj);
+        //komunikacijskaveza(serverThread);
+        return serverThread;
+    }
+
+
+    public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
+    //BLUETOTHEND
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_krizic_kruzic);
+        a= 1;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                pozicija[i][j] = a;
+                a++;
+            }
+        }
+        init();
+        makeBoard();
+
+        initBT();
+
+
+        if (bAdapter == null){
+            Toast.makeText(getApplicationContext(), "IDIOT", Toast.LENGTH_LONG).show();
+            finish();
+        }
+        startDiscovery();
+        getPariedDevices();
+        //printDevices();
+        serverStart();
+    }
+
+    private void init() {
+        //SAVING DATA ELEMENTS
+        file = new File(getFilesDir().toString()+"/history");
+        myStringArray1 = new ArrayList<String>();
+        myStringArray2 = new ArrayList<String>();
+        myStringArray3 = new ArrayList<String>();
+        adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, myStringArray2);
+
+        play = (Button) findViewById(R.id.btnPlay);
+        history = (Button) findViewById(R.id.btnHistory);
+        exit = (Button) findViewById(R.id.btnExit);
+        notifikacija = (Button) findViewById(R.id.button);
+
+
+
+        play.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setContentView(R.layout.activity_play);
+            }
+        });
+
+        notifikacija.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ajmoSlati();
+            }
+        });
+
+        history.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setContentView(R.layout.activity_history);
+                ListView lsvHistory= (ListView) findViewById(R.id.lsvHistory);
+                lsvHistory.setAdapter(adapter);
+                getAllGames(file);
+            }
+        });
+
+        exit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (client!=null){
+                    client.cancel();
+
+                }
+                if (server!=null){
+                    server.cancel();
+
+                }
+                System.exit(0);
+            }
+        });
+    }
+
+    private void makeBoard() {
+        board = new char[3][3];
+        currentPlayerMark = 'x';
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                board[i][j] = '-';
+            }
+        }
+    }
+
+    public void kliknuto (View v) {
+        boolean isFull = true;
+        Integer p;
+
+
+        ImageView iv = (ImageView) v;
+        LinearLayout parent = (LinearLayout) v.getParent();
+        LinearLayout parentParent = (LinearLayout) parent.getParent();
+
+        if(parent.getChildAt(0) == v) row = 0;
+        if(parent.getChildAt(1) == v) row = 1;
+        if(parent.getChildAt(2) == v) row = 2;
+
+        if(parentParent.getChildAt(0) == parent) col = 0;
+        if(parentParent.getChildAt(1) == parent) col = 1;
+        if(parentParent.getChildAt(2) == parent) col = 2;
+        if(IDEN==1) {
+            p = pozicija[col][row];
+            komunikacijskikanal = p;
+            if (client == null && server == null) {
+                Toast.makeText(getApplicationContext(), "NISI  SE POVEZAO, igraš sam", Toast.LENGTH_LONG).show();
+            }
+            ;
+            String s = komunikacijskikanal.toString();
+            byte[] readBuf = s.getBytes();
+            //Toast.makeText(getApplicationContext(), s, Toast.LENGTH_SHORT).show();
+            if (client == null) {
+                server.write(readBuf);
+                IDEN=0;
+                //server.start();
+            } else {
+                client.write(readBuf);
+                //client.start();
+                IDEN=0;
+            }
+
+
+
+
+            /*IVAN KOMENTAR!!!*/
+            // Za Domagoja i Mateja: OVDJE IMAS INFORMACIJU KOJI
+            //JE STUPAC I KOJI RED ODABRAN: row i col, te osim toga
+            //u "wehaveawinner" će se nalaziti ako je došlo do tog da
+            //je netko pobijedio ili isFull ako je nerješeno.
+            //Za Domagoja: potrebno je svaki taj potez na neki način trajno spremiti,
+            //te oznaku je li korisnik pobijedio, izgubio itd i s kim.
+            //Za Mateja: potrebno je svaki taj potez poslati drugom korisniku preko wifi-a ili
+            //bluetootha i korisnik taj podatak mora primiti.
+
+            /*DOMAGOJ KOMENTAR!!!*/
+            // Za Ivana i Mateja: malo sam uredio kod i stavio u metode da ne izgleda natrpano sad kad sam nadodao i svoje. Ima dosta privremenih detalja kao button goBack na svakom layoutu da bi se app lakse testirala!
+            //Za Mateja: trebala bi mi nekakva identifikacijska oznaka igraca da se i o tome vodi racuna <<"Ako se slučajno sretne suparnik s kojim prošla igra nije dovršena, treba
+            //omogućiti nastavak igre">>.
+
+            if (iv.getDrawable() == null) {
+                if (board[row][col] == '-') {
+                    board[row][col] = currentPlayerMark;
+                }
+                if (currentPlayerMark == KRIZIC) {
+                    iv.setImageResource(R.drawable.krizic);
+                    currentPlayerMark = KRUZIC;
+                } else {
+                    iv.setImageResource(R.drawable.kruzic);
+                    currentPlayerMark = KRIZIC;
+                }
+            }
+            wehaveawinner = false;
+            for (int i = 0; i < 3; i++) {
+                if (checkRowCol(board[i][0], board[i][1], board[i][2])) {
+                    wehaveawinner = true;
+
+                }
+            }
+            for (int i = 0; i < 3; i++) {
+                if (checkRowCol(board[0][i], board[1][i], board[2][i])) {
+                    wehaveawinner = true;
+
+                }
+            }
+
+            if ((checkRowCol(board[0][0], board[1][1], board[2][2])) || (checkRowCol(board[0][2], board[1][1], board[2][0]))) {
+                wehaveawinner = true;
+
+            }
+
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (board[i][j] == '-') {
+                        isFull = false;
+                    }
+                }
+            }
+            disable(wehaveawinner, isFull);
+
+            addParametersToList(wehaveawinner, isFull, currentPlayerMark, row, col);
+        }
+    }
+
     private boolean checkRowCol(char c1, char c2, char c3) {
         return ((c1 != '-') && (c1 == c2) && (c2 == c3));
     }
@@ -291,12 +454,16 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
             v7.setEnabled(false);
             v8.setEnabled(false);
             v9.setEnabled(false);
+            serverStart();
         }
     }
 
     public void goBack(View v) {
         setContentView(R.layout.activity_krizic_kruzic);
         init();
+        initBT();
+        startDiscovery();
+        getPariedDevices();
         makeBoard();
     }
 
@@ -470,6 +637,11 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
         bAdapter.cancelDiscovery();
         bAdapter.startDiscovery();
 
+    }
+
+    private void serverStart(){
+        AcceptThread serverDevice = new AcceptThread();
+        serverDevice.start();
     }
 
     private void TrunonBT() {
@@ -720,31 +892,31 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
             // Keep listening to the InputStream until an exception occurs
             while (true) {
                 try {
-                    buffer = new byte[1];
+                    buffer = new byte[1024];
                     // Read from the InputStream
-                    bytes = mmInStream.read(buffer, 0, 1);
+                    bytes = mmInStream.read(buffer, 0,1024);
 
                     final int input = buffer[0];
 
-                    Log.d("PINGPONG", "Received message" + input);
+                    //Log.d("PINGPONG", "Received message" + input);
 
-                    Thread.sleep(1000);
+                    //Thread.sleep(1000);
 
                     final byte outputBuffer[] = new byte[1];
                     final int out = input + 1;
                     outputBuffer[0] = (byte) out;
 
-                    write(outputBuffer);
+                    //write(outputBuffer);
 
                     // Send the obtained bytes to the UI activity
-                    //mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
-
+                    mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+                    //primioPoruku(buffer);
                 } catch (IOException e) {
                     break;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    break;
-                }
+                } //catch (InterruptedException e) {
+                    //e.printStackTrace();
+                    //break;
+                //}
             }
         }
 
