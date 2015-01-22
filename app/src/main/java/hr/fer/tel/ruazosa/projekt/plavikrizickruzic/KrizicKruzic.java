@@ -733,7 +733,6 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
                 else if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)){
                     if (bAdapter.getState() == bAdapter.STATE_OFF){
                         TrunonBT();
-                        i++;
 
                     }
                 }
