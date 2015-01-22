@@ -79,6 +79,7 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
     Integer IDEN=1,komunikacijskikanal;
     ConnectedThread client=null;
     ConnectedThread server=null;
+    int ON;
 
     BluetoothAdapter bAdapter;
 
@@ -649,7 +650,18 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
 
     private void TrunonBT() {
         Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-        startActivityForResult(intent, 1);
+        startActivity(intent);
+        ON=0;
+        while (bAdapter.getState()==bAdapter.STATE_OFF){
+
+            try{
+                Thread.sleep(3000);
+                ON = 0;
+
+            }catch (InterruptedException e){
+                Toast.makeText(getApplicationContext(), "Nešto je prekinilo čekanje", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void getPariedDevices() {
@@ -674,7 +686,14 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
         pariedDevices = new ArrayList<String>();
         filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         devices = new ArrayList<BluetoothDevice>();
-        TrunonBT();
+
+        if (bAdapter.getState() == bAdapter.STATE_OFF){
+            TrunonBT();
+            ON = 1;
+
+
+        }
+
         Intent discoverableIntent = new
                 Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
