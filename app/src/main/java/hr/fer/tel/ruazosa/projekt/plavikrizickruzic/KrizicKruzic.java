@@ -48,6 +48,7 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
     //Krizic_Kruzic
     Button play, history, exit,notifikacija;
 
+
     //Play
     private static final char KRIZIC = 'x';
     private static final char KRUZIC = 'o';
