@@ -63,6 +63,8 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
     ArrayList<String> myStringArray1,myStringArray2,myStringArray3;
     ArrayAdapter<String> adapter;
     File file;
+    String IDkorisnika="Moj uređaj";
+    String IDProtivnika;
 
     //BLUETOTH
     private static final int SUCCESS_CONNECT = 0;
@@ -672,7 +674,6 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
         filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         devices = new ArrayList<BluetoothDevice>();
         TrunonBT();
-
         Intent discoverableIntent = new
                 Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
@@ -757,8 +758,8 @@ public class KrizicKruzic extends Activity implements AdapterView.OnItemClickLis
         }
 
         if(listAdapter.getItem(position).contains("Paired")){
-
             BluetoothDevice slectedDevice = devices.get(position);
+            IDProtivnika = slectedDevice.getAddress();
             ConnectThread connect = new ConnectThread(slectedDevice);
             connect.start();
 
